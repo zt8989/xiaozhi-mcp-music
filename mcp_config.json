@@ -1,9 +1,9 @@
 {
   "mcpServers": {
-    "local-stdio-calculator": {
+    "local-stdio-qqmusic": {
       "type": "stdio",
       "command": "python",
-      "args": ["-m", "calculator"]
+      "args": ["-m", "qqmusic_mcp"]
     },
     "remote-sse-server": {
       "type": "sse",

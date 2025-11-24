@@ -1,0 +1,16 @@
+[project]
+name = "xiaozhi-mcp-music"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastmcp>=2.13.0.2",
+    "mcp>=1.20.0",
+    "mcp-proxy>=0.10.0",
+    "pydantic>=2.12.3",
+    "python-dotenv>=1.2.1",
+    "websockets>=15.0.1",
+    "pyexecjs==1.5.1",
+    "requests==2.32.3",
+]

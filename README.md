@@ -1,115 +1,75 @@
-# MCP Sample Project | MCP 示例项目
+# QQMusic MCP (uv 管理的工具集)
 
-A powerful interface for extending AI capabilities through remote control, calculations, email operations, knowledge search, and more.
+A uv-managed collection of QQ Music MCP tools for searching lyrics, resolving playback URLs, and exposing playlist/comment/lyric metadata to AI clients.
 
-一个强大的接口，用于通过远程控制、计算、邮件操作、知识搜索等方式扩展AI能力。
+一个通过 `uv` 管理依赖的 QQ 音乐 MCP 工具合集，帮助 AI 客户端搜索歌词、解析播放链接并获取歌单、评论和歌词信息。
 
 ## Overview | 概述
 
-MCP (Model Context Protocol) is a protocol that allows servers to expose tools that can be invoked by language models. Tools enable models to interact with external systems, such as querying databases, calling APIs, or performing computations. Each tool is uniquely identified by a name and includes metadata describing its schema.
+`qqmusic_mcp.py` 基于 `FastMCP` 构建 manifest，暴露 `search_music_by_lyrics` 与 `get_music_url_by_songmid` 两个工具。`qqmusic_service.py` 负责读取 `QQM_COOKIE`、注入 `qqmusic_client` 并提供服务层，而 `qqmusic_client.py` 则实现全部 HTTP 请求与 JavaScript 签名逻辑。借助 `uv.lock` 与 `pyproject.toml` 能确保依赖可重复安装。
 
-MCP（模型上下文协议）是一个允许服务器向语言模型暴露可调用工具的协议。这些工具使模型能够与外部系统交互，例如查询数据库、调用API或执行计算。每个工具都由一个唯一的名称标识，并包含描述其模式的元数据。
+`qqmusic_mcp.py` builds a `FastMCP` manifest with two tools (`search_music_by_lyrics` and `get_music_url_by_songmid`), `qqmusic_service.py` bootstraps the QQ Music client using `qqmusic_client.py`, and the provided `uv.lock`/`pyproject.toml` make the dependency graph reproducible.
 
-## Features | 特性
+## uv Workflow | uv 工作流程
 
-- 🔌 Bidirectional communication between AI and external tools | AI与外部工具之间的双向通信
-- 🔄 Automatic reconnection with exponential backoff | 具有指数退避的自动重连机制
-- 📊 Real-time data streaming | 实时数据流传输
-- 🛠️ Easy-to-use tool creation interface | 简单易用的工具创建接口
-- 🔒 Secure WebSocket communication | 安全的WebSocket通信
-- ⚙️ Multiple transport types support (stdio/sse/http) | 支持多种传输类型（stdio/sse/http）
+1. Install `uv` if you do not already have it (e.g., `pip install uv`).
+   如果尚未安装 `uv`，可以通过 `pip install uv` 获取，并确保可以在项目目录运行。
+2. Sync dependencies into the managed virtual environment:
 
-## Quick Start | 快速开始
+   ```bash
+   uv sync
+   ```
 
-1. Install dependencies | 安装依赖:
-```bash
-pip install -r requirements.txt
-```
+3. Provide your QQ Music cookie so the service can authenticate (`QQM_COOKIE` can be exported or stored in `.env`, see `.env.example`).
 
-2. Set up environment variables | 设置环境变量:
-```bash
-export MCP_ENDPOINT=<your_mcp_endpoint>
-```
+   ```bash
+   export QQM_COOKIE="<your_cookie>"
+   ```
 
-3. Run the calculator example | 运行计算器示例:
-```bash
-python mcp_pipe.py calculator.py
-```
+4. Start the QQ Music MCP manifest using the managed interpreter:
 
-Or run all configured servers | 或运行所有配置的服务:
-```bash
-python mcp_pipe.py
-```
+   ```bash
+   uv run python qqmusic_mcp.py
+   ```
 
-*Requires `mcp_config.json` configuration file with server definitions (supports stdio/sse/http transport types)*
+5. (Optional) Use `mcp_pipe.py` to connect a client to the manifest, again via `uv run`:
 
-*需要 `mcp_config.json` 配置文件定义服务器（支持 stdio/sse/http 传输类型）*
+   ```bash
+   uv run python mcp_pipe.py qqmusic_mcp.py
+   ```
+
+   This keeps every component running inside the same `uv`-managed environment so the `uv.lock` dependency set is honored.
 
 ## Project Structure | 项目结构
 
-- `mcp_pipe.py`: Main communication pipe that handles WebSocket connections and process management | 处理WebSocket连接和进程管理的主通信管道
-- `calculator.py`: Example MCP tool implementation for mathematical calculations | 用于数学计算的MCP工具示例实现
-- `requirements.txt`: Project dependencies | 项目依赖
+- `qqmusic_client.py`: QQ 音乐 HTTP 接口与 `execjs` 签名逻辑，构成最底层的 API 套件
+- `qqmusic_service.py`: 加载 `.env`/`QQM_COOKIE` 并构建 `QQMusic` helper，以便 MCP manifest 使用
+- `qqmusic_mcp.py`: FastMCP manifest，定义两个对外工具供 AI 调用
+- `mcp_pipe.py`: 通用 MCP 管道，可通过 stdio/SSE/HTTP 连接工具
+- `uv.lock` + `pyproject.toml`: 依赖描述与锁定，通过 `uv sync` 控制
+- `loader.js`, `main.js`, `module.js`, `ventor.js`: Web 签名/加载器辅助脚本
 
-## Config-driven Servers | 通过配置驱动的服务
+## Configuration Hints | 配置说明
 
-编辑 `mcp_config.json` 文件来配置服务器列表（也可设置 `MCP_CONFIG` 环境变量指向其他配置文件）。
+- `QQM_COOKIE`：要么导出环境变量，要么写入 `.env`（推荐参考 `.env.example`）
+- `uv run --managed-python`：在多个系统共存 Python 版本时强制使用 `uv` 管理的解释器
+- `mcp_config.json`: 如需将 `qqmusic_mcp` 与其他工具桥接，可新增条目并通过 `mcp_pipe.py` 加载
 
-配置说明：
-- 无参数时启动所有配置的服务（自动跳过 `disabled: true` 的条目）
-- 有参数时运行单个本地脚本文件
-- `type=stdio` 直接启动；`type=sse/http` 通过 `python -m mcp_proxy` 代理
+## Recommendations | 建议
 
-## Creating Your Own MCP Tools | 创建自己的MCP工具
-
-Here's a simple example of creating an MCP tool | 以下是一个创建MCP工具的简单示例:
-
-```python
-from fastmcp import FastMCP
-
-mcp = FastMCP("YourToolName")
-
-@mcp.tool()
-def your_tool(parameter: str) -> dict:
-    """Tool description here"""
-    # Your implementation
-    return {"success": True, "result": result}
-
-if __name__ == "__main__":
-    mcp.run(transport="stdio")
-```
-
-## Use Cases | 使用场景
-
-- Mathematical calculations | 数学计算
-- Email operations | 邮件操作
-- Knowledge base search | 知识库搜索
-- Remote device control | 远程设备控制
-- Data processing | 数据处理
-- Custom tool integration | 自定义工具集成
-
-## Requirements | 环境要求
-
-- Python 3.7+
-- websockets>=11.0.3
-- python-dotenv>=1.0.0
-- mcp>=1.8.1
-- pydantic>=2.11.4
-- mcp-proxy>=0.8.2
+- Always run commands through `uv run` so the `.venv` created by `uv sync` is used consistently.
+- Use `uv export --format=requirements.txt` if you need a legacy `requirements.txt` view of the resolved dependencies.
 
 ## Contributing | 贡献指南
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+欢迎提交 PR，请在 `uv sync` 后通过 `uv run` 运行相关脚本以验证你的改动。
 
-欢迎贡献代码！请随时提交Pull Request。
-
-## License | 许可证
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-本项目采用MIT许可证 - 详情请查看LICENSE文件。
+Contributions are welcome! Make sure to run the relevant scripts via `uv run` after `uv sync` to verify changes.
 
 ## Acknowledgments | 致谢
 
-- Thanks to all contributors who have helped shape this project | 感谢所有帮助塑造这个项目的贡献者
-- Inspired by the need for extensible AI capabilities | 灵感来源于对可扩展AI能力的需求
+Thanks to https://github.com/ZWD11/QQmusicApi for the detailed QQ Music API reverse engineering that inspired this project.
+
+## License | 许可证
+
+MIT License | MIT 许可证
