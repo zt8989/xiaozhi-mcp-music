@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Annotated, Dict, List
 
 from fastmcp.server.server import FastMCP
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 import qqmusic_service
 from qqmusic_service import build_main_client, build_service_client
@@ -24,6 +24,27 @@ MANIFEST_DESCRIPTION = (
 )
 
 manifest = FastMCP(name=MANIFEST_NAME, instructions=MANIFEST_DESCRIPTION)
+
+
+class SongMetadata(BaseModel):
+    """Normalized schema for QQ Music search results."""
+
+    songname: str = Field(description="Human-readable title of the song.")
+    singer: str = Field(description="Primary singer name.")
+    albumname: str = Field(description="Album title.")
+    duration: str = Field(description="Duration formatted as M:SS.")
+    songmid: str = Field(description="QQ Music songmid identifier.")
+    songid: int = Field(description="Numeric QQ Music song ID.")
+    albummid: str = Field(description="QQ Music album identifier.")
+
+
+class MusicUrlInfo(BaseModel):
+    """Structured payload for a playback URL resolution request."""
+
+    songmid: str = Field(description="QQ Music songmid identifier.")
+    file_type: str = Field(description="Requested audio quality code.")
+    url: str = Field(description="Resolved HTTPS playback URL.")
+    bitrate: str = Field(description="Descriptive bitrate string returned by the service.")
 
 
 def _replace_http_with_https(data):
@@ -58,18 +79,19 @@ async def search_music_by_lyrics(
             first = singers[0]
             singer_name = first.get("name", "") if isinstance(first, dict) else ""
         normalized.append(
-            {
-                "songname": song.get("songname", "").replace('"', ""),
-                "singer": singer_name.replace('"', ""),
-                "albumname": song.get("albumname", ""),
-                "duration": f"{song.get('interval', 0) // 60}:{song.get('interval', 0) % 60:02d}",
-                "songmid": song.get("songmid", ""),
-                "songid": song.get("songid", ""),
-                "albummid": song.get("albummid", ""),
-            }
+            SongMetadata(
+                songname=song.get("songname", "").replace('"', ""),
+                singer=singer_name.replace('"', ""),
+                albumname=song.get("albumname", ""),
+                duration=f"{song.get('interval', 0) // 60}:{song.get('interval', 0) % 60:02d}",
+                songmid=song.get("songmid", ""),
+                songid=song.get("songid", ""),
+                albummid=song.get("albummid", ""),
+            ).dict()
         )
 
     return _replace_http_with_https(normalized)
+
 
 @manifest.tool(description="Retrieve a playback URL for a given QQ Music songmid and quality.")
 async def get_music_url_by_songmid(
@@ -93,7 +115,7 @@ async def get_music_url_by_songmid(
     if not result:
         raise LookupError(f"No URL available for {songmid} @ {file_type}")
 
-    return {"songmid": songmid, "file_type": file_type, **result}
+    return MusicUrlInfo(songmid=songmid, file_type=file_type, **result).dict()
 
 
 def build_manifest(manifest_path: Path | str = "qqmusic_mcp_manifest.json") -> None:
