@@ -1472,7 +1472,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pyexecjs" },
     { name = "python-dotenv" },
-    { name = "requests" },
+    { name = "httpx" },
     { name = "websockets" },
 ]
 
@@ -1484,7 +1484,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.12.3" },
     { name = "pyexecjs", specifier = "==1.5.1" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
-    { name = "requests", specifier = "==2.32.3" },
+    { name = "httpx", specifier = ">=0.28.1" },
     { name = "websockets", specifier = ">=15.0.1" },
 ]
 

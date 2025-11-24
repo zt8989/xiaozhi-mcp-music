@@ -4,7 +4,7 @@ import os
 import time
 
 import execjs
-import requests
+import httpx
 from dotenv import load_dotenv
 
 import qqmusic_client
@@ -61,7 +61,6 @@ class QQMusic:
             "Origin": "https://y.qq.com",
             "Referer": "https://y.qq.com/ryqq/css/common.092d215c4a601df90f9f.chunk.css?max_age=2592000",
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36 Edg/133.0.0.0",
-            "Referer;": "",
             "if-modified-since": "Tue, 04 Mar 2025 01:05:37 GMT",
             "referer": "https://y.qq.com/",
             "origin": "https://y.qq.com",
@@ -76,6 +75,11 @@ class QQMusic:
             'flac': {'s': 'F000', 'e': '.flac', 'bitrate': 'FLAC'},
         }
 
+    async def _request(self, method, url, **kwargs):
+        method = method.upper()
+        async with httpx.AsyncClient() as client:
+            return await client.request(method, url, **kwargs)
+
     def set_cookies(self, cookie_str):
         cookies = {}
         for cookie in cookie_str.split('; '):
@@ -84,7 +88,7 @@ class QQMusic:
         self.cookies = cookies
         return cookies
 
-    def get_music_url(self, songmid, file_type='128'):
+    async def get_music_url(self, songmid, file_type='128'):
         """
         获取音乐播放URL
 
@@ -124,7 +128,13 @@ class QQMusic:
             },
         }
 
-        response = requests.post(self.base_url, json=req_data, cookies=self.cookies, headers=self.headers)
+        response = await self._request(
+            'POST',
+            self.base_url,
+            json=req_data,
+            cookies=self.cookies,
+            headers=self.headers,
+        )
         data = response.json()
 
         purl = data['req_1']['data']['midurlinfo'][0]['purl']
@@ -138,7 +148,7 @@ class QQMusic:
 
         return {'url': url, 'bitrate': bitrate}
     
-    def get_category_playlist(self,disstid,cookie):
+    async def get_category_playlist(self, disstid, cookie):
         id = disstid
         ck = cookie
         # cookies = QQMusic.set_cookies(cookie_str)
@@ -184,11 +194,18 @@ class QQMusic:
             'sign': sign,
         }
 
-        response = requests.post(url, headers=self.headers, data=data.encode(), cookies=ck , params=params)
+        response = await self._request(
+            'POST',
+            url,
+            headers=self.headers,
+            data=data.encode(),
+            cookies=ck,
+            params=params,
+        )
         # print(response.json)
         return response.json()['req_2']
     
-    def get_toplist_playlist(self,topid,cookie):
+    async def get_toplist_playlist(self, topid, cookie):
         id = topid
         ck = cookie
         data = json.dumps({
@@ -230,11 +247,18 @@ class QQMusic:
         }
         print(sign)
 
-        response = requests.post(url, headers=self.headers, data=data.encode(), cookies=ck , params=params)
+        response = await self._request(
+            'POST',
+            url,
+            headers=self.headers,
+            data=data.encode(),
+            cookies=ck,
+            params=params,
+        )
         # print(response.json)
         return response.json()['req_1']
     
-    def get_comment(self, bizid, cookie, size):
+    async def get_comment(self, bizid, cookie, size):
         id = bizid
         ck = cookie
         pagesize = size
@@ -310,11 +334,18 @@ class QQMusic:
         }
         print(sign)
 
-        response = requests.post(url, headers=self.headers, data=data.encode(), cookies=ck , params=params)
+        response = await self._request(
+            'POST',
+            url,
+            headers=self.headers,
+            data=data.encode(),
+            cookies=ck,
+            params=params,
+        )
         # print(response.json)
         return response.json()['req_3']
     
-    def get_user_songlist(self,id):
+    async def get_user_songlist(self, id):
         headers = {
             "accept": "application/json",
             "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6",
@@ -345,8 +376,12 @@ class QQMusic:
             "needNewCode": 0
         }
         
-        response = requests.get(url, headers=headers, params=params)
-        response.encoding = 'utf-8'
+        response = await self._request(
+            'GET',
+            url,
+            headers=headers,
+            params=params,
+        )
         result = response.json()
         
         if result.get('code') == 4000:
@@ -382,7 +417,7 @@ class QQMusic:
             }
         }
     
-    def get_user_collect_songlist(self, id, cookie): 
+    async def get_user_collect_songlist(self, id, cookie): 
         t = round(time.time() * 1000)
         ck = cookie
         url = "https://c.y.qq.com/fav/fcgi-bin/fcg_get_profile_order_asset.fcg"
@@ -406,7 +441,13 @@ class QQMusic:
             "ein": "10"
         }
         
-        response = requests.get(url, headers=self.headers, params=params, cookies=ck)
+        response = await self._request(
+            'GET',
+            url,
+            headers=self.headers,
+            params=params,
+            cookies=ck,
+        )
         result = response.json()
         
         if not result.get('data'):
@@ -426,7 +467,7 @@ class QQMusic:
             }
         }
         
-def get_song_qualities(songmid):
+async def get_song_qualities(songmid):
     """获取歌曲所有可用音质信息的辅助函数"""
     qqmusic = QQMusic()
     qqmusic.set_cookies(cookie_str)
@@ -435,7 +476,7 @@ def get_song_qualities(songmid):
     results = {}
     
     for file_type in file_types:
-        if result := qqmusic.get_music_url(songmid, file_type):
+        if result := await qqmusic.get_music_url(songmid, file_type):
             results[file_type] = result
     
     return {

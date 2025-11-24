@@ -37,7 +37,7 @@ def _replace_http_with_https(data):
 
 
 @manifest.tool(description="Search QQ Music by lyric keywords and return normalized song metadata.")
-def search_music_by_lyrics(
+async def search_music_by_lyrics(
     lyrics: Annotated[str, Field(description="Lyrics fragment or song title to search for.")],
     page: Annotated[int, Field(description="Result page number (1-indexed).")] = 1,
     limit: Annotated[int, Field(description="Maximum number of songs to return.")] = 5,
@@ -48,7 +48,7 @@ def search_music_by_lyrics(
     page = max(page, 1)
     limit = max(limit, 1)
     qqm = build_main_client()
-    raw_songs = qqm.search_music(lyrics, page, limit)
+    raw_songs = await qqm.search_music(lyrics, page, limit)
     normalized = []
 
     for song in raw_songs[:limit]:
@@ -72,7 +72,7 @@ def search_music_by_lyrics(
     return _replace_http_with_https(normalized)
 
 @manifest.tool(description="Retrieve a playback URL for a given QQ Music songmid and quality.")
-def get_music_url_by_songmid(
+async def get_music_url_by_songmid(
     songmid: Annotated[str, Field(description="QQ Music songmid identifier.")],
     file_type: Annotated[
         str,
@@ -88,7 +88,7 @@ def get_music_url_by_songmid(
         raise ValueError("songmid is required for get_music_url_by_songmid")
 
     qqmusic = build_service_client()
-    result = qqmusic.get_music_url(songmid, file_type)
+    result = await qqmusic.get_music_url(songmid, file_type)
 
     if not result:
         raise LookupError(f"No URL available for {songmid} @ {file_type}")
