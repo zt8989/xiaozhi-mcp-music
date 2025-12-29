@@ -3,7 +3,13 @@
     "local-stdio-qqmusic": {
       "type": "stdio",
       "command": "python",
-      "args": ["-m", "qqmusic_mcp"]
+      "args": ["-m", "qqmusic_mcp"],
+      "disabled": true
+    },
+    "local-stdio-file-upnp": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["-m", "file_upnp_mcp"]
     },
     "remote-sse-server": {
       "type": "sse",
